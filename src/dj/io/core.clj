@@ -46,9 +46,11 @@
 	([this txt]
 	   (spit this txt)))
   Imkdir
-  (mkdir [this] (if (.mkdirs this)
-		  this
-		  (throw (Exception. (str "Could not make directory " (.getCanonicalPath this))))))
+  (mkdir [this] (when-not (.exists this)
+                  (if (.mkdirs this)
+                    this
+                    (throw (ex-info (str "Could not make directory " (.getCanonicalPath this))
+                                    {:file this})))))
   Iget-name
   (get-name [f]
 	    (let [n (.getName f)]
@@ -67,9 +69,20 @@
 	(.delete dest)))
   Imv
   (mv [target ^java.io.File dest]
-      (if (.isDirectory dest)
-	(.renameTo target (file dest (.getName target)))
-	(.renameTo target dest)))
+    (when-not (if (.isDirectory dest)
+                (.renameTo target (file dest (.getName target)))
+                (.renameTo target dest))
+      (if (.exists dest)
+        (throw (ex-info (str "Failed to move file " (.getCanonicalPath target) " to file " (.getCanonicalPath dest) " because destination already exists")
+                        {:target target
+                         :dest dest}))
+        (if (.exists (.getParentFile dest))
+          (throw (ex-info (str "Failed to move file " (.getCanonicalPath target) " to file/directory " (.getCanonicalPath dest))
+                          {:target target
+                           :dest dest}))
+          (throw (ex-info (str "Failed to move file " (.getCanonicalPath target) " to file/directory " (.getCanonicalPath dest) " because destination folder does not exist")
+                          {:target target
+                           :dest dest}))))))
   Irelative-to
   (relative-to [folder path]
 	       (file folder path))
